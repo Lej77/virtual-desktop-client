@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "outDir": "dist",
+        "module": "ES2022",
+        "target": "es2022",
+        "moduleResolution": "node",
+        // Need as a workaround for: https://github.com/rollup/plugins/issues/287
+        "rootDir": "src",
+        "strictNullChecks": true,
+        "strict": true,
+        "useUnknownInCatchVariables": false
+    },
+    "include": [
+        "src/**/*",
+        "TestJavaScriptClient/**/*"
+    ]
+}

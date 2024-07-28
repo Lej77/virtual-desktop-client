@@ -1,0 +1,33 @@
+{
+  "name": "virtual-desktop-client",
+  "version": "1.0.0",
+  "description": "A client for my virtual desktop server.",
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "deno run --allow-read --allow-run ./TestJavaScriptClient/client.ts",
+    "generate": "protoc --proto_path=.. --js_out=import_style=commonjs,binary:./src --grpc-web_out=import_style=commonjs+dts,mode=grpcweb:./src ../VirtualDesktop.proto",
+    "deno-types": "deno types > ./src/deno.runtime.d.ts",
+    "build": "rollup --config",
+    "watch": "rollup --watch --config",
+    "clean": "DEL /F /S /Q node_modules > NUL && RMDIR /Q/S node_modules"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^14.14.9",
+    "google-protobuf": "^3.14.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^16.0.0",
+    "@rollup/plugin-node-resolve": "^10.0.0",
+    "@rollup/plugin-typescript": "^6.1.0",
+    "@types/google-protobuf": "^3.7.4",
+    "rollup": "^2.33.3",
+    "rollup-plugin-terser": "^7.0.2",
+    "rollup-plugin-zip": "^1.0.1",
+    "tslib": "^2.0.3",
+    "typescript": "^4.1.2",
+    "protoc-gen-js": "^3.21.2"
+  }
+}

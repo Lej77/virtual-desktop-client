@@ -1,0 +1,13 @@
+{
+    "cSpell.words": [
+        "APPCOMMAND",
+        "LPARAM",
+        "SHELLHOOKINFO",
+        "STARTUPINFO",
+        "protobufjs"
+    ],
+    "deno.enablePaths": [
+        "./client-js/TestJavaScriptClient"
+    ],
+    "deno.unstable": true,
+}

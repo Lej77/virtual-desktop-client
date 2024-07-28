@@ -1,0 +1,468 @@
+syntax = "proto3";
+package virtualdesktop;
+
+// A request to the virtual desktop server.
+message Request {
+  // 0 is reserved for requests that don't need a response. Even numbers are for messages
+  // initiated by the client and odd numbers are for messages initiated by the server.
+  uint32 id = 1;
+  oneof data {
+    // Log a message.
+    //
+    // Note: use field number 1-15 for fast messages.
+    LogRequest log = 14;
+    // Cancel the request specified by the current id.
+    //
+    // Note: use field number 1-15 for fast messages.
+    CancelRequest cancel = 15;
+    GetIsElevatedRequest get_is_elevated = 17;
+    // Virtual desktops:
+    GetCurrentVirtualDesktopRequest get_current_virtual_desktop = 30;
+    CreateVirtualDesktopRequest create_virtual_desktop = 31;
+    DeleteVirtualDesktopRequest delete_virtual_desktop = 32;
+    ChangeVirtualDesktopRequest change_virtual_desktop = 33;
+    ListenForVirtualDesktopChangedRequest listen_for_virtual_desktop_changed = 34;
+    ListenForVirtualDesktopCreatedRequest listen_for_virtual_desktop_created = 35;
+    ListenForVirtualDesktopDeletedRequest listen_for_virtual_desktop_deleted = 36;
+    PinWindowToAllVirtualDesktopsRequest pin_window_to_all_virtual_desktops = 37;
+    UnpinWindowFromAllVirtualDesktopsRequest unpin_window_from_all_virtual_desktops = 38;
+    MoveWindowToVirtualDesktopRequest move_window_to_virtual_desktop = 39;
+    GetWindowVirtualDesktopIndexRequest get_window_virtual_desktop_index = 40;
+    GetWindowIsPinnedToVirtualDesktopRequest get_window_is_pinned_to_virtual_desktop = 41;
+    // Window info:
+    QueryOpenWindowsRequest open_windows_query = 50;
+    GetForegroundWindowRequest get_foreground_window = 51;
+    GetDesktopWindowRequest get_desktop_window = 52;
+    ListenToShellEventsRequest listen_to_shell_events = 53;
+    GetIsWindowMinimizedRequest get_is_window_minimized = 70;
+    GetWindowLocationRequest get_window_location = 71;
+    // Manipulate windows:
+    SetWindowShowStateRequest set_window_show_state = 60;
+    CloseWindowRequest close_window = 61;
+    SetForegroundWindowRequest set_foreground_window = 62;
+    MoveWindowRequest move_window = 63;
+    StopWindowFlashingRequest stop_window_flashing = 64;
+  }
+}
+
+// A response from the virtual desktop server.
+message Response {
+  uint32 id = 1;
+  // If this is false then expect more messages for this request id.
+  //
+  // Many messages can occur for requests that are really listening
+  // for events or when a response is so large it needs to be split
+  // into smaller parts.
+  bool done = 2;
+  oneof data {
+    // The request completed successfully but had no data to return.
+    //
+    // Note: use field number 1-15 for fast messages.
+    SuccessResponse success = 13;
+    // The request was canceled. The done field should always be true for this type.
+    //
+    // Note: use field number 1-15 for fast messages.
+    CanceledResponse canceled = 14;
+    // An error occurred for the request indicated by the current id.
+    //
+    // Note: use field number 1-15 for fast messages.
+    ErrorResponse error = 15;
+    // A request failed to be parsed and was dropped. The client
+    // should probably restart if this response is received.
+    //
+    // The id of a response with this data is always 0.
+    DroppedRequestResponse dropped_request = 16;
+    GetIsElevatedResponse get_is_elevated = 17;
+    GetCurrentVirtualDesktopResponse get_current_virtual_desktop = 30;
+    ListenForVirtualDesktopChangedResponse listen_for_virtual_desktop_changed = 34;
+    ListenForVirtualDesktopCreatedResponse listen_for_virtual_desktop_created = 35;
+    ListenForVirtualDesktopDeletedResponse listen_for_virtual_desktop_deleted = 36;
+    GetWindowVirtualDesktopIndexResponse get_window_virtual_desktop_index = 40;
+    GetWindowIsPinnedToVirtualDesktopResponse get_window_is_pinned_to_virtual_desktop = 41;
+    QueryOpenWindowsResponse open_windows_query = 50;
+    GetForegroundWindowResponse get_foreground_window = 51;
+    GetDesktopWindowResponse get_desktop_window = 52;
+    ListenToShellEventsResponse listen_to_shell_events = 53;
+    GetIsWindowMinimizedResponse get_is_window_minimized = 70;
+    GetWindowLocationResponse get_window_location = 71;
+    SetWindowShowStateResponse set_window_show_state = 60;
+  }
+}
+
+// Generic success response for requests that don't return any data.
+message SuccessResponse {}
+// Generic error response. Any request can return this response if an
+// error was encountered when processing it.
+message ErrorResponse {
+  string error_message = 1;
+}
+
+// Special response, not connected to a request id.
+message DroppedRequestResponse {
+  string error_message = 1;
+  enum Reason {
+    PARSE_ERROR = 0;
+    TOO_LARGE_REQUEST = 1;
+  }
+  Reason reason = 2;
+}
+
+message CancelRequest {}
+// Generic cancel response. Any request can return this response if it was canceled.
+message CanceledResponse {}
+
+message LogRequest {
+  string log_message = 1;
+}
+
+message ListenToShellEventsRequest {
+  bool get_second_event_arg = 1;
+  oneof optional_wanted_shell_type {
+    ShellEventType wanted_event_type = 2;
+  }
+}
+message ListenToShellEventsResponse {
+  // Indicates what type of shell event occurred.
+  ShellEventType event_type = 1;
+  // For most actions this will be a handle for the affected window.
+  // For some actions this handle is used for something else.
+  int64 data = 2;
+  // Contains secondary data for the event. What it is used for depends on the event type.
+  // This will only be included if it is specified as wanted in the initial request.
+  int64 secondary_data = 3;
+  int32 event_type_code = 4;
+}
+enum ShellEventType {
+  Unknown = 0;
+  // A top-level, unowned window has been created. The window exists when the system calls this hook.
+  // Data is: A handle to the window being created.
+  WINDOW_CREATED = 1;
+  // A top-level, unowned window is about to be destroyed. The window still exists when the system calls this hook.
+  // Data is: A handle to the top-level window being destroyed.
+  WINDOW_DESTROYED = 2;
+  /// The shell should activate its main window.
+  /// Data is: Not used.
+  ACTIVATE_SHELL_WINDOW = 3;
+  /// The activation has changed to a different top-level, unowned window. 
+  /// Data is: A handle to the activated window.
+  /// 2nd Data is: The value is TRUE if the window is in full-screen mode, or FALSE otherwise. 
+  WINDOW_ACTIVATED = 4;
+  /// A window is being minimized or maximized. The system needs the coordinates of the minimized rectangle for the window. 
+  /// Data is: A pointer to a SHELLHOOKINFO structure.
+  /// 2nd Data is: A pointer to a RECT structure. 
+  GET_MIN_RECT = 5;
+  /// The title of a window in the task bar has been redrawn. 
+  /// Data is: A handle to the window that needs to be redrawn.
+  /// 2nd Data is: The value is TRUE if the window is flashing, or FALSE otherwise. 
+  REDRAW = 6;
+  /// The user has selected the task list. 
+  /// Data is: Can be ignored.
+  TASK_MAN = 7;
+  /// Keyboard language was changed or a new keyboard layout was loaded.
+  /// Data is: A handle to the window.
+  /// 2nd Data is: A handle to a keyboard layout.
+  LANGUAGE = 8;
+  SYS_MENU = 9;
+  /// Data is: A handle to the window that should be forced to exit.
+  END_TASK = 10;
+  /// The accessibility state has changed. 
+  /// Data is: The accessibility state has changed. 
+  ACCESSIBILITY_STATE = 11;
+  /// The user completed an input event (for example, pressed an application command button on the mouse or an application command key on the keyboard), and the application did not handle theM_APPCOMMAND message generated by that input. 
+  /// Data is: The APPCOMMAND which has been unhandled by the application or other hooks. See WM_APPCOMMAND and use the GET_APPCOMMAND_Data macro to retrieve this parameter.
+  /// 2nd Data is: GET_APPCOMMAND_LPARAM(lParam) is the application command corresponding to the input event.
+  ///             GET_DEVICE_LPARAM(lParam) indicates what generated the input event; for example, the mouse or keyboard. For more information, see the uDevice parameter description under M_APPCOMMAND.
+  ///             GET_FLAGS_LPARAM(lParam) depends on the value of cmd in WM_APPCOMMAND. For example, it might indicate which virtual keys were held down when the WM_APPCOMMAND message was originallyent. For more information, see the dwCmdFlags description parameter under WM_APPCOMMAND.
+  APP_COMMAND = 12;
+  /// A top-level window is being replaced. The window exists when the system calls this hook. 
+  /// Data is: A handle to the window being replaced.
+  /// 2nd Data is: A handle to the new window. 
+  /// Windows 2000:  Not supported.
+  WINDOW_REPLACED = 13;
+  /// Data is: A handle to the window replacing the top-level window.
+  WINDOW_REPLACING = 14;
+  /// Data is: A handle to the window that moved to a different monitor.
+  /// 2nd Data is: A handle to the window that moved to a different monitor.
+  MONITOR_CHANGED = 16;
+  /// Data is: A handle to the activated window.
+  RUDE_APP_ACTIVATED = 17;
+  /// Data is: A handle to the window that needs to be flashed.
+  FLASH = 18;
+}
+
+message MoveWindowRequest {
+  int64 window_handle = 1;
+  Rectangle wanted_location = 2;
+}
+
+message GetWindowLocationRequest {
+  int64 window_handle = 1;
+  bool extended_frame_bound = 2;
+}
+message GetWindowLocationResponse {
+  Rectangle bounds = 1;
+}
+
+message Rectangle {
+  int32 top = 1;
+  int32 left = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+// Check if the server has admin permissions.
+message GetIsElevatedRequest {}
+message GetIsElevatedResponse {
+  // true if the server has admin permissions.
+  bool is_elevated = 1;
+}
+
+message GetDesktopWindowRequest {}
+message GetDesktopWindowResponse {
+  int64 desktop_window_handle = 1;
+}
+
+message GetForegroundWindowRequest {}
+message GetForegroundWindowResponse {
+  int64 foreground_window_handle = 1;
+}
+
+message SetForegroundWindowRequest {
+  int64 window_handle = 1;
+}
+
+message GetIsWindowMinimizedRequest {
+  int64 window_handle = 1;
+}
+message GetIsWindowMinimizedResponse {
+  bool is_minimized = 1;
+}
+
+message CloseWindowRequest {
+  int64 window_handle = 1;
+}
+
+message SetWindowShowStateRequest {
+  int64 window_handle = 1;
+  ShowState wanted_state = 2;
+  enum ShowState {
+    // Some varaints have the same value.
+    option allow_alias = true;
+    HIDE = 0;
+    FORCE_MINIMIZE = 11;
+    MAXIMIZE = 3;
+    MINIMIZE = 6;
+    RESTORE = 9;
+    SHOW = 5;
+    SHOW_DEFAULT = 10;
+    SHOW_MAXIMIZED = 3;
+    SHOW_MINIMIZED = 2;
+    SHOW_MINIMIZED_NO_ACTIVATE = 7;
+    SHOW_NO_ACTIVATE = 8;
+    SHOW_NORMAL_NO_ACTIVATE = 4;
+    SHOW_NORMAL = 1;
+  }
+}
+message SetWindowShowStateResponse {
+  bool was_visible = 1;
+}
+
+// Used to filter open windows to select a subset.
+message OpenWindowsFilter {
+  oneof optional_has_virtual_desktop_info {
+      bool has_virtual_desktop_info = 1;
+  }
+  oneof optional_window_handle {
+    int64 window_handle = 2;
+  }
+  oneof optional_parent_window_handle {
+    int64 parent_window_handle = 3;
+  }
+  oneof optional_root_parent_window_handle {
+    int64 root_parent_window_handle = 4;
+  }
+  oneof optional_title {
+    string title = 5;
+  }
+  oneof optional_process_id {
+    uint32 process_id = 6;
+  }
+  oneof optional_pinned_to_all_virtual_desktops {
+    bool pinned_to_all_virtual_desktops = 7;
+  }
+  oneof optional_virtual_desktop_index {
+    int32 virtual_desktop_index = 8;
+  }
+  oneof optional_is_minimized {
+    bool is_minimized = 9;
+  }
+}
+
+message QueryOpenWindowsRequest {
+  // A filter that can be used to only gather info about certain windows. Leave as null to get data for all windows.
+  OpenWindowsFilter windows_filter = 1;
+  // This can be left as null to get all data. This is an optimization hint and may be ignored by the server.
+  QueryOpenWindowsRequestWantedDataSpecifier wanted_data_specifier = 2;
+}
+// Since these fields aren't optional you must specify true for any fields you are interested in. The rest and any future fields will default to false.
+message QueryOpenWindowsRequestWantedDataSpecifier {
+  bool parent_window_handle = 1;
+  bool root_parent_window_handle = 2;
+  bool title = 3;
+  bool process_id = 4;
+  bool pinned_to_all_virtual_desktops = 5;
+  bool virtual_desktop_index = 6;
+  bool is_minimized = 7;
+}
+message QueryOpenWindowsResponse {
+  int64 window_handle = 1;
+  oneof optional_parent_window_handle {
+    int64 parent_window_handle = 2;
+  }
+  oneof optional_root_parent_window_handle {
+    int64 root_parent_window_handle = 3;
+  }
+  oneof optional_title {
+    string title = 4;
+  }
+  oneof optional_process_id {
+    uint32 process_id = 5;
+  }
+  oneof optional_pinned_to_all_virtual_desktops {
+    bool pinned_to_all_virtual_desktops = 6;
+  }
+  oneof optional_virtual_desktop_index {
+    int32 virtual_desktop_index = 7;
+  }
+  oneof optional_is_minimized {
+    bool is_minimized = 8;
+  }
+}
+
+message GetCurrentVirtualDesktopRequest {}
+message GetCurrentVirtualDesktopResponse {
+    int32 current_virtual_desktop_index = 1;
+}
+
+message CreateVirtualDesktopRequest {
+    bool switch_to_the_created_desktop = 1;
+}
+
+message DeleteVirtualDesktopRequest {
+    // If true and the deleted desktop is the currently active one then switch to the
+    // virtual desktop to the left of it instead of the one to its right.
+    //
+    // If this is true then the currently selected virtual desktop index can change even
+    // when it wouldn't need to, therefore its probably best to default this to false.
+    bool prefer_falling_back_to_the_left = 1;
+    // The index of the virtual desktop that should be deleted.
+    oneof desktop_to_remove {
+        // Delete the currently active virtual desktop.
+        DeleteVirtualDesktopRequestCurrentDesktop current_desktop = 14;
+        // Delete the virtual desktop with the specified index.
+        int32 virtual_desktop_index = 15;
+	}
+}
+message DeleteVirtualDesktopRequestCurrentDesktop {}
+
+message ChangeVirtualDesktopRequest {
+    // True to use animations when changing the active virtual desktop.
+    bool smooth_change = 1;
+    oneof change {
+        // Move directly to a specified virtual desktop index.
+        int32 wanted_virtual_desktop_index = 13;
+        // Move to a virtual desktop that is to the right of the currently active virtual desktop.
+        int32 change_right = 14;
+        // Move to a virtual desktop that is to the left of the currently active virtual desktop.
+        int32 change_left = 15;
+	}
+}
+
+message ListenForVirtualDesktopChangedRequest {}
+message ListenForVirtualDesktopChangedResponse {
+    // The index of the previously active virtual desktop.
+    int32 old_current_virtual_desktop_index = 1;
+    // The index of the currently active virtual desktop.
+    int32 new_current_virtual_desktop_index = 2;
+}
+
+message ListenForVirtualDesktopDeletedRequest {}
+message ListenForVirtualDesktopDeletedResponse {
+    // The index of the virtual desktop that was deleted.
+    int32 index_of_deleted_virtual_desktop = 1;
+    // The index of the virtual desktop that is to be displayed after specified virtual desktop
+    // is deleted.
+    //
+    // This index is for before the delete is preformed. So if it is after the deleted virtual
+    // desktop then it will be one less after the delete operation has been preformed.
+    int32 index_of_fallback_virtual_desktop = 2;
+}
+
+message ListenForVirtualDesktopCreatedRequest {}
+message ListenForVirtualDesktopCreatedResponse {
+    // The index of the created virtual desktop. The new virtual desktop should always be created
+    // after all the currenltly existing virtual desktops but this might change in the future.
+    int32 index_of_created_virtual_desktop = 1;
+}
+
+message PinWindowToAllVirtualDesktopsRequest {
+    int64 window_handle = 1;
+    bool stop_window_flashing = 2;
+}
+
+message UnpinWindowFromAllVirtualDesktopsRequest {
+    int64 window_handle = 1;
+    oneof should_move_as_well {
+        UnpinWindowFromAllVirtualDesktopsRequestJustUnpin just_unpin = 2;
+        UnpinWindowFromAllVirtualDesktopsRequestMoveIfUnpinned move_if_unpinned = 3;
+        UnpinWindowFromAllVirtualDesktopsRequestMoveUnconditionally move_unconditionally = 4;
+	}
+}
+message UnpinWindowFromAllVirtualDesktopsRequestJustUnpin {}
+message UnpinWindowFromAllVirtualDesktopsRequestMoveIfUnpinned {
+    int32 target_virtual_desktop_index = 1;
+    MoveWindowToVirtualDesktopOptions move_options = 2;
+}
+message UnpinWindowFromAllVirtualDesktopsRequestMoveUnconditionally {
+    int32 target_virtual_desktop_index = 1;
+    MoveWindowToVirtualDesktopOptions move_options = 2;
+}
+
+message MoveWindowToVirtualDesktopRequest {
+    int64 window_handle = 1;
+    MoveWindowToVirtualDesktopOptions move_options = 2;
+    oneof change {
+        // Move the window directly to a specified virtual desktop index.
+        int32 wanted_virtual_desktop_index = 13;
+        // Move the window to a virtual desktop that is to the right of the currently active virtual desktop.
+        int32 change_right = 14;
+        // Move the window to a virtual desktop that is to the left of the currently active virtual desktop.
+        int32 change_left = 15;
+	}
+}
+
+message MoveWindowToVirtualDesktopOptions {
+    // Don't do anything if the window is already at the wanted virtual desktop.
+    bool dont_move_if_already_at_target = 1;
+    // Do some extra work to stop the window from flashing. When a window is "flashing" its taskbar icon might be flashing yellow and the taskbar icon is also visible on all virtual desktops.
+    bool stop_window_flashing = 2;
+}
+
+message GetWindowVirtualDesktopIndexRequest {
+    int64 window_handle = 1;
+}
+message GetWindowVirtualDesktopIndexResponse {
+    int32 virtual_desktop_index = 1;
+}
+
+message GetWindowIsPinnedToVirtualDesktopRequest {
+    int64 window_handle = 1;
+}
+message GetWindowIsPinnedToVirtualDesktopResponse {
+    bool is_pinned = 1;
+}
+
+message StopWindowFlashingRequest {
+    // Determines what windows should be affected by this operation.
+    OpenWindowsFilter windows_filter = 1;
+}
